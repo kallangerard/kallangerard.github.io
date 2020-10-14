@@ -88,6 +88,7 @@
 <p>You will need at least two networks. Here I&rsquo;m using the default, and another for the backend services.</p>
 <p><em>Make sure to use a specific image version. Your Application Proxy is not something you want pulling latest</em></p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#f92672">traefik</span>:
+    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">traefik:v2.2.1</span>
 		<span style="color:#ae81ff">...</span>
     <span style="color:#f92672">networks</span>:
       - <span style="color:#ae81ff">default</span>
