@@ -11,10 +11,12 @@ contentDir: content
 dataDir: data
 layoutDir: layouts
 publishDir: public
+
 buildDrafts: false
 buildFuture: false
 buildExpired: false
-canonifyURLs: true
+canonifyURLs: false
+
 enableRobotsTXT: true
 enableGitInfo: false
 enableEmoji: true
@@ -70,99 +72,3 @@ menu:
     - identifier: posts
       name: Posts
       url: posts/
-
-# menu:
-#   main:
-#     - identifier: home
-#       name: Home
-#       url: "/"
-#       weight: 1
-#     - identifier: posts
-#       name: Posts
-#       url: /blog/
-#       weight: 2
-
-#   topbar:
-#     - name: GitHub
-#       url: "https://github.com/kallangerard"
-#       pre: "<li class='fab fa-2x fa-github'></li>"
-#       weight: 1
-#     - name: LinkedIn
-#       url: "https://www.linkedin.com/in/kallan-gerard-2a3266157/"
-#       pre: '<i class="fab fa-2x fa-linkedin-in"></i>'
-  
-
-# params:
-#   topbar:
-#     enable: true
-#   recent_posts:
-#     enable: true
-#     title: Recent Posts
-#     subtitle: The Latest posts
-#   mainSections:
-#     - blog
-#   viewMorePostLink: "/blog/"
-#   author: "Kallan"
-#   defaultKeywords:
-#     - devops
-#     - perth
-#   defaultDescription: Devops and Lean Enthusiast
-
-#   # Style options: default (light-blue), blue, green, marsala, pink, red, turquoise, violet
-#   style: default
-
-#   copyright: "Copyright (c) 2020, Kallan Gerard; all rights reserved."
-#   date_format: "2 January, 2006"
-#   address: Perth, Western Australia
-#   widgets:
-#     search: true
-#     tags: true
-
-
-# menu:
-#   main:
-#     - name: Blog
-#       url: /
-#       weight: 1
-#     - name: Projects
-#       url: /project/
-#       weight: 2
-#     - name: Contact
-#       url: /page/contact/
-#       weight: 3
-#     - name: About
-#       url: /page/about/
-#       weight: 4
-
-# author:
-#   name: Kallan Gerard
-
-# taxonomies:
-#   tag: tags
-
-# params:
-#   mainSections: 
-#     - post
-#   intro: true
-#   headline: "My headline"
-#   description: "My description"
-#   github: "https://github.com/kallangerard"
-#   linkedin: "https://www.linkedin.com/in/kallan-gerard-2a3266157/"
-#   email: "kallan.gerard@gmail.com"
-#   opengraph: true
-#   shareLinkedIn: true
-#   dateFormat: "Mon, 2 January, 2006"
-#   rss: true
-#   readingTime: true
-#   readingTimeText: "Estimated reading time:"
-
-# Permalinks:
-#     post: "/:filename/"
-
-# privacy:
-#   disqus:
-#     disable: true
-#   googleAnalytics:
-#     anonymizeIP: true
-#     respectDoNotTrack: true
-#     useSessionStorage: false
