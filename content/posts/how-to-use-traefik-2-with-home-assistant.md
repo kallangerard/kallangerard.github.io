@@ -107,6 +107,7 @@ _Make sure to use a specific image version. Your Application Proxy is not someth
 
 ```yaml
 traefik:
+    image: traefik:v2.2.1
 		...
     networks:
       - default
