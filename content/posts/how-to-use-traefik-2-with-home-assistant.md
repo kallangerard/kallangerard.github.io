@@ -97,20 +97,23 @@ volumes:
   homeassistant:
 ```
 
-Let's start from the top. Here we mount the docker socket to Traefik with read only access. This allows Traefik to read the metadata of your containers for service discovery. We also use a volume for traefik to store certificates.
+## Defining Traefik in Docker Compose
+
+Let's start from the top.
+
+You will need at least two networks. Here I'm using the default, and another for the backend services.
+
+_Make sure to use a specific image version. Your Application Proxy is not something you want pulling latest_
 
 ```yaml
 traefik:
-    # Make sure to use a specific image version.
-    # Your Application Proxy is not something you want pulling latest.
 		...
-		# You will want at least two networks.
-		# The default network services run by default, and where HTTP/HTTPS exposed.
-		# And one or more backend networks for your services.
     networks:
       - default
       - backend
 ```
+
+Traefik will require read only access to your docker socket. This allows Traefik to read the metadata of your containers for service discovery. We also use a volume for traefik to store certificates.
 
 ```yaml
 volumes:
@@ -118,7 +121,7 @@ volumes:
   - traefik:/letsencrypt
 ```
 
-Here we're using a custom command to configure traefik. I prefer this over using configuration files as it keeps it all within one place. Docker Compose will combine this entire list into a single line, but it's a lot more readable this way.
+I use a custom docker run command to configure Traefik. I prefer this over using configuration files as it keeps it all within one place. In addition, when you make a change Docker Compose will restart Traefik for you.
 
 ```yaml
 command:
@@ -134,7 +137,7 @@ command:
   - --certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53
 ```
 
-There's a few ways to configure traefik, whichever method you prefer. These are all equivalent.
+There's a few ways to configure Traefik, you can use whichever method you prefer, they are all equivalent.
 
 _Pluralisation and capitalisation are different for each configuration mode._
 
@@ -143,14 +146,18 @@ _Pluralisation and capitalisation are different for each configuration mode._
 command:
   - --entrypoints.web.address=:80
   - --entrypoints.websecure.address=:443
+```
 
+```yaml
 # traefik.yaml
 entryPoints:
   web:
-    address: ":80"
+    address: ':80'
   websecure:
-    address: ":443"
+    address: ':443'
+```
 
+```toml
 # traefik.toml
 [entryPoints.web]
 address = ":80"
@@ -158,27 +165,42 @@ address = ":80"
 address = ":443"
 ```
 
-**Entrypoints** define the outside edge of your traefik service. For standard HTTP you'll need port 80 and for HTTPS you'll need 443.
+## Entrypoints
+
+Entrypoints define the outside edge of your Traefik service. For standard HTTP you'll need port 80 and for HTTPS you'll need 443.
 
 ```yaml
 - --entrypoints.web.address=:80
 - --entrypoints.websecure.address=:443
 ```
 
-**Providers** define where traefik will look for services.
+## Providers
 
-We need one flag to declare docker being used as a provider, another to define the endpoint, as well as `exposedbydefault=false` so that we have to explicitly tell traefik to enable services on each container. We also set the network to match what is used by your service containers, to avoid having to set it for every individual container.
+Providers define where Traefik will look for services.
+
+We need one flag to declare docker being used as a provider.
+
+```yaml
+- --providers.docker
+```
+
+To make sure Traefik doesn't try to expose every Docker service by default, we declare
+
+```yaml
+- --providers.docker.exposedbydefault=false
+```
+
+We also set the network to match what is used by your service containers, to avoid having to set it for every individual container.
 
 The name of the network is the **absolute** network name, which by default is the name of the folder where your docker-compose.yaml file lives and the name of the network. To confirm your network names run `docker network ls`. In my case it's `docker_backend`.
 
 ```yaml
-- --providers.docker
-- --providers.docker.exposedbydefault=false
-- --providers.docker.endpoint=unix://var/run/docker.sock
 - --providers.docker.network=docker_backend
 ```
 
-**Certificate Resolvers** are used for the automatic generation of your certificates for HTTPS. Check traefik's documentation for your exact configuration requirements. [https://doc.traefik.io/traefik/https/acme/](https://doc.traefik.io/traefik/https/acme/)
+## Certificate Resolvers
+
+Certificate Resolvers are used for the automatic generation of your certificates for HTTPS. Check traefik's documentation for your exact configuration requirements. [https://doc.traefik.io/traefik/https/acme/](https://doc.traefik.io/traefik/https/acme/)
 
 _Since there is no inline assignment, Docker Compose will pull this variable
 from the environment when you run `docker-compose up`_
@@ -298,13 +320,15 @@ Now the final catch is making sure you and your clients can reach your Traefik i
 
 ### Internal Access Only
 
-You will need to use an internally managed DNS. I use my router to create a dns entry for my domain name and points it towards the server hosting Traefik. Be sure to include your subdomains or use a subdomain wildcard.
+You will need to use an internally managed DNS. I use my router to create a dnsmasq entry for my domain name, with the IP address of the server hosting Traefik. Be sure to include your subdomains or use a subdomain wildcard.
 
 ### External Web Access
 
 You'll need to forward port 80 and 443 to your Traefik server. And you'll probably need to enable a internal NAT reflection so your internal clients will be redirected appropriately.
 
-These are both highly dependent on your network configuration. I wouldn't attempt these until you have a reasonable understanding of what you're doing.
+You will also need to make sure your dns record with your DNS provider resolves to your WAN ip address.
+
+_These are both highly dependent on your network configuration. I wouldn't attempt these until you have a reasonable understanding of what you're doing_
 
 ## Bringing it up
 
