@@ -37,6 +37,8 @@ permalinks:
 author: 
   name: Kallan Gerard
 
+disqusShortname: kallangerard
+
 params:
   dateform: "2 Jan, 2006"
   dateformShort: "2 Jan"
