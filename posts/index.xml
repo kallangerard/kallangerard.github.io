@@ -1,0 +1,215 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Posts on Kallan Gerard</title><link>https://kallangerard.github.io/posts/</link><description>Recent content in Posts on Kallan Gerard</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Kallan Gerard</copyright><lastBuildDate>Tue, 13 Oct 2020 13:10:41 +0800</lastBuildDate><atom:link href="https://kallangerard.github.io/posts/index.xml" rel="self" type="application/rss+xml"/><item><title>How to Use Traefik 2 With Home Assistant</title><link>https://kallangerard.github.io/posts/2020/10/how-to-use-traefik-2-with-home-assistant/</link><pubDate>Tue, 13 Oct 2020 13:10:41 +0800</pubDate><guid>https://kallangerard.github.io/posts/2020/10/how-to-use-traefik-2-with-home-assistant/</guid><description>&lt;h1 id="how-to-use-traefik-v2-with-home-assistant-and-docker">How to use Traefik v2 with Home Assistant and Docker&lt;/h1>
+&lt;p>When I started using Traefik v2, I struggled to find a useful guide to use it with Home Assistant. Here&amp;rsquo;s my attempt to fill that gap.&lt;/p></description><content type="html"><![CDATA[<h1 id="how-to-use-traefik-v2-with-home-assistant-and-docker">How to use Traefik v2 with Home Assistant and Docker</h1>
+<p>When I started using Traefik v2, I struggled to find a useful guide to use it with Home Assistant. Here&rsquo;s my attempt to fill that gap.</p>
+<p>To attempt this you&rsquo;ll want a working understanding of how reverse proxies are used, as well as experience with Docker. You&rsquo;ll also require a domain name.</p>
+<p>The main benefits of Traefik for me have been:</p>
+<ul>
+<li><strong>Service Discovery:</strong> Traefik can use metadata from your Docker services to discover those services and dynamically configure itself.</li>
+<li><strong>SSL Termination and Automatic certificate generation:</strong> Using Let&rsquo;s Encrypt you can get self-renewing certificates out of the box, including for use inside your own network.</li>
+<li><strong>Middleware:</strong> Hand off authentication to another service, set headers, redirect HTTP to HTTPS etc.</li>
+</ul>
+<p><em>Here&rsquo;s a complete working example for those of you who are almost there but just want a quick reference guide. Please note I&rsquo;m using Home Assistant inside a docker network and not on host_mode. For device discovery in this mode I recommend using a second remote home assistant instance which I&rsquo;ll cover in another article.</em></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#75715e"># docker-compose.yaml</span>
+---
+<span style="color:#f92672">version</span>: <span style="color:#e6db74">&#34;2.3&#34;</span>
+
+<span style="color:#f92672">services</span>:
+
+  <span style="color:#f92672">traefik</span>:
+      <span style="color:#f92672">image</span>: <span style="color:#ae81ff">traefik:v2.2.1</span>
+      <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">traefik</span>
+      <span style="color:#f92672">ports</span>:
+        - <span style="color:#ae81ff">80</span>:<span style="color:#ae81ff">80</span>
+        - <span style="color:#ae81ff">443</span>:<span style="color:#ae81ff">443</span>
+      <span style="color:#f92672">networks</span>:
+        - <span style="color:#ae81ff">default</span>
+        - <span style="color:#ae81ff">backend</span>
+      <span style="color:#f92672">environment</span>:
+        - <span style="color:#ae81ff">CLOUDFLARE_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}</span>
+      <span style="color:#f92672">volumes</span>:
+        - <span style="color:#ae81ff">/var/run/docker.sock:/var/run/docker.sock:ro</span>
+        - <span style="color:#ae81ff">traefik:/letsencrypt</span>
+      <span style="color:#f92672">command</span>:
+	      - --<span style="color:#ae81ff">entrypoints.web.address=:80</span>
+        - --<span style="color:#ae81ff">entrypoints.websecure.address=:443</span>
+        - --<span style="color:#ae81ff">providers.docker</span>
+        - --<span style="color:#ae81ff">providers.docker.exposedbydefault=false</span>
+        - --<span style="color:#ae81ff">providers.docker.endpoint=unix://var/run/docker.sock</span>
+        <span style="color:#75715e"># network name is &lt;projectname&gt;_backend</span>
+        - --<span style="color:#ae81ff">providers.docker.network=docker_backend</span>
+        <span style="color:#75715e"># certificatesresolver.&lt;any_name&gt;.acme</span>
+        - --<span style="color:#ae81ff">certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare</span>
+        - --<span style="color:#ae81ff">certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json</span>
+        - --<span style="color:#ae81ff">certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53</span>
+      <span style="color:#f92672">labels</span>:
+        - <span style="color:#e6db74">&#34;traefik.enable=true&#34;</span>
+        <span style="color:#75715e"># global redirect to https</span>
+        - <span style="color:#e6db74">&#34;traefik.http.routers.redirs.entrypoints=web&#34;</span>
+        - <span style="color:#e6db74">&#34;traefik.http.routers.redirs.rule=hostregexp(`{host:.+}`)&#34;</span>
+        <span style="color:#75715e"># HTTP&gt;HTTPS REDIRECT</span>
+        - <span style="color:#e6db74">&#34;traefik.http.routers.redirs.middlewares=redirect-to-https&#34;</span>
+        - <span style="color:#e6db74">&#34;traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https&#34;</span>
+      <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+
+  <span style="color:#f92672">homeassistant</span>:
+    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">homeassistant/home-assistant:0.113.2</span>
+    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">homeassistant</span>
+    <span style="color:#f92672">networks</span>:
+      - <span style="color:#ae81ff">backend</span>
+    <span style="color:#f92672">environment</span>:
+      - <span style="color:#ae81ff">PGID=${DOCKER_PGID}</span>
+      - <span style="color:#ae81ff">PUID=${DOCKER_PUID}</span>
+      - <span style="color:#ae81ff">TZ=${TIME_ZONE}</span>
+    <span style="color:#f92672">volumes</span>:
+      - <span style="color:#ae81ff">homeassistant:/config</span>
+      - <span style="color:#ae81ff">/etc/localtime:/etc/localtime:ro</span>
+    <span style="color:#f92672">labels</span>:
+      - <span style="color:#e6db74">&#34;traefik.enable=true&#34;</span>
+      - <span style="color:#e6db74">&#34;traefik.http.routers.homeassistant.entrypoints=websecure&#34;</span>
+      - <span style="color:#e6db74">&#34;traefik.http.routers.homeassistant.rule=Host(`homeassistant.${DOMAIN_NAME}`)&#34;</span>
+      - <span style="color:#e6db74">&#34;traefik.http.routers.homeassistant.tls=true&#34;</span>
+      - <span style="color:#e6db74">&#34;traefik.http.routers.homeassistant.tls.certresolver=cloudflare&#34;</span>
+      - <span style="color:#e6db74">&#34;traefik.http.services.homeassistant.loadbalancer.server.port=8123&#34;</span>
+    <span style="color:#f92672">healthcheck</span>:
+      <span style="color:#f92672">test</span>: [<span style="color:#e6db74">&#34;CMD&#34;</span>, <span style="color:#e6db74">&#34;curl&#34;</span>, <span style="color:#e6db74">&#34;-f&#34;</span>, <span style="color:#e6db74">&#34;http://localhost:8123&#34;</span>]
+      <span style="color:#f92672">interval</span>: <span style="color:#ae81ff">2m</span>
+      <span style="color:#f92672">timeout</span>: <span style="color:#ae81ff">10s</span>
+      <span style="color:#f92672">retries</span>: <span style="color:#ae81ff">3</span>
+      <span style="color:#f92672">start_period</span>: <span style="color:#ae81ff">40s</span>
+    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+
+<span style="color:#f92672">networks</span>:
+  <span style="color:#f92672">default</span>:
+  <span style="color:#f92672">backend</span>:
+
+<span style="color:#f92672">volumes</span>:
+  <span style="color:#f92672">traefik</span>:
+  <span style="color:#f92672">homeassistant</span>:
+</code></pre></div><p>Let&rsquo;s start from the top. Here we mount the docker socket to Traefik with read only access. This allows Traefik to read the metadata of your containers for service discovery. We also use a volume for traefik to store certificates.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#f92672">traefik</span>:
+    <span style="color:#75715e"># Make sure to use a specific image version.</span>
+    <span style="color:#75715e"># Your Application Proxy is not something you want pulling latest.</span>
+		<span style="color:#ae81ff">...</span>
+		<span style="color:#75715e"># You will want at least two networks.</span>
+		<span style="color:#75715e"># The default network services run by default, and where HTTP/HTTPS exposed.</span>
+		<span style="color:#75715e"># And one or more backend networks for your services.</span>
+    <span style="color:#f92672">networks</span>:
+      - <span style="color:#ae81ff">default</span>
+      - <span style="color:#ae81ff">backend</span>
+</code></pre></div><div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#f92672">volumes</span>:
+  - <span style="color:#ae81ff">/var/run/docker.sock:/var/run/docker.sock:ro</span>
+  - <span style="color:#ae81ff">traefik:/letsencrypt</span>
+</code></pre></div><p>Here we&rsquo;re using a custom command to configure traefik. I prefer this over using configuration files as it keeps it all within one place. Docker Compose will combine this entire list into a single line, but it&rsquo;s a lot more readable this way.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#f92672">command</span>:
+  - --<span style="color:#ae81ff">entrypoints.web.address=:80</span>
+  - --<span style="color:#ae81ff">entrypoints.websecure.address=:443</span>
+  - --<span style="color:#ae81ff">providers.docker</span>
+  - --<span style="color:#ae81ff">providers.docker.exposedbydefault=false</span>
+  - --<span style="color:#ae81ff">providers.docker.endpoint=unix://var/run/docker.sock</span>
+  <span style="color:#75715e"># network name is &lt;projectname&gt;_backend</span>
+  - --<span style="color:#ae81ff">providers.docker.network=docker_backend</span>
+  - --<span style="color:#ae81ff">certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare</span>
+  - --<span style="color:#ae81ff">certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json</span>
+  - --<span style="color:#ae81ff">certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53</span>
+</code></pre></div><p>There&rsquo;s a few ways to configure traefik, whichever method you prefer. These are all equivalent.</p>
+<p><em>Pluralisation and capitalisation are different for each configuration mode.</em></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#75715e"># docker-compose.yaml</span>
+<span style="color:#f92672">command</span>:
+  - --<span style="color:#ae81ff">entrypoints.web.address=:80</span>
+  - --<span style="color:#ae81ff">entrypoints.websecure.address=:443</span>
+
+<span style="color:#75715e"># traefik.yaml</span>
+<span style="color:#f92672">entryPoints</span>:
+  <span style="color:#f92672">web</span>:
+    <span style="color:#f92672">address</span>: <span style="color:#e6db74">&#34;:80&#34;</span>
+  <span style="color:#f92672">websecure</span>:
+    <span style="color:#f92672">address</span>: <span style="color:#e6db74">&#34;:443&#34;</span>
+
+<span style="color:#75715e"># traefik.toml</span>
+[<span style="color:#ae81ff">entryPoints.web]</span>
+<span style="color:#ae81ff">address = &#34;:80&#34;</span>
+[<span style="color:#ae81ff">entryPoints.websecure]</span>
+<span style="color:#ae81ff">address = &#34;:443&#34;</span>
+</code></pre></div><p><strong>Entrypoints</strong> define the outside edge of your traefik service. For standard HTTP you&rsquo;ll need port 80 and for HTTPS you&rsquo;ll need 443.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">- --<span style="color:#ae81ff">entrypoints.web.address=:80</span>
+- --<span style="color:#ae81ff">entrypoints.websecure.address=:443</span>
+</code></pre></div><p><strong>Providers</strong> define where traefik will look for services.</p>
+<p>We need one flag to declare docker being used as a provider, another to define the endpoint, as well as <code>exposedbydefault=false</code> so that we have to explicitly tell traefik to enable services on each container. We also set the network to match what is used by your service containers, to avoid having to set it for every individual container.</p>
+<p>The name of the network is the <strong>absolute</strong> network name, which by default is the name of the folder your docker-compose.yaml file lives and the name of the network. To see your network names run <code>docker network ls</code>. In my case it&rsquo;s <code>docker_backend</code>.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">- --<span style="color:#ae81ff">providers.docker</span>
+- --<span style="color:#ae81ff">providers.docker.exposedbydefault=false</span>
+- --<span style="color:#ae81ff">providers.docker.endpoint=unix://var/run/docker.sock</span>
+- --<span style="color:#ae81ff">providers.docker.network=docker_backend</span>
+</code></pre></div><p><strong>Certificate Resolvers</strong> are used for the automatic generation of your certificates for HTTPS. Check traefik&rsquo;s documentation for your exact configuration requirements. <a href="https://doc.traefik.io/traefik/https/acme/">https://doc.traefik.io/traefik/https/acme/</a></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#75715e"># Since there is no inline assignment, Docker Compose will pull this variable</span>
+<span style="color:#75715e"># from the environment where you run docker-compose up</span>
+<span style="color:#f92672">environment</span>:
+  - <span style="color:#ae81ff">CLOUDFLARE_DNS_API_TOKEN</span>
+<span style="color:#f92672">command</span>:
+	<span style="color:#75715e"># ...</span>
+	- --<span style="color:#ae81ff">certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare</span>
+	- --<span style="color:#ae81ff">certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json</span>
+	- --<span style="color:#ae81ff">certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53</span>
+</code></pre></div><p>I&rsquo;m using a dns challenge process to allow Let&rsquo;s Encrypt to prove I control my domain.</p>
+<p>When a service is defined with a host name, Traefik will kick off the certificate generation process.</p>
+<p>Traefik will call Let’s Encrypt and receive a token, and then create a TXT record derived from that token and your account key with your dns provider at _acme-challenge.&lt;YOUR_DOMAIN&gt;. Traefik will then check the DNS record for your domain until the token resolves. Afterwards Let’s Encrypt will validate the DNS on it&rsquo;s end and hand over a certificate to Traefik.</p>
+<p>I&rsquo;m manually specifying the DNS servers to check the TXT record with <code>certificatesresolvers.cloudflare.acme.dnschallenge.resolvers</code> because my internal DNS would interfer with this check.</p>
+<p>Traefik will then take that certificate and store it permanently in the location defined in <code>certificatesresolvers.cloudflare.acme.storage</code>.</p>
+<p>The main advantage here is, unlike a HTTP challenge, your Traefik instance does not need to be reachable from the internet at all. As long as it can make an outgoing connection to your DNS provider and Let&rsquo;s Encrypt you&rsquo;re good to keep your services behind a VPN and firewall at all times.</p>
+<h2 id="redirecting-http-to-https-optional">Redirecting HTTP to HTTPS (optional)</h2>
+<p>Traefik is comprised of entrypoints, routers, middleware and services.
+We create a http router rule, arbitrarily named <code>redirs</code>, to listen on the web entrypoint (port 80), with a regex expression that applies to <em>all</em> host names. So effectively every HTTP client request that hits Traefik on port 80 will be handled by this router.</p>
+<p><em>Backticks ` are required to define a host rule, not single quotes &lsquo;</em></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#f92672">labels</span>:
+  - <span style="color:#e6db74">&#39;traefik.enable=true&#39;</span>
+  <span style="color:#75715e"># global redirect to https</span>
+  - <span style="color:#e6db74">&#39;traefik.http.routers.redirs.entrypoints=web&#39;</span>
+  - <span style="color:#e6db74">&#39;traefik.http.routers.redirs.rule=hostregexp(`{host:.+}`)&#39;</span>
+</code></pre></div><p>Then we define a piece of middleware, arbitrarily named <code>redirect-to-https</code>, to redirect incoming request to https.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#75715e"># HTTP&gt;HTTPS REDIRECT</span>
+- <span style="color:#e6db74">&#39;traefik.http.routers.redirs.middlewares=redirect-to-https&#39;</span>
+- <span style="color:#e6db74">&#39;traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https&#39;</span>
+</code></pre></div><h2 id="defining-home-assistant-rules">Defining Home Assistant Rules</h2>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">  <span style="color:#f92672">homeassistant</span>:
+    <span style="color:#ae81ff">...</span>
+    <span style="color:#f92672">networks</span>:
+      - <span style="color:#ae81ff">backend</span>
+    <span style="color:#f92672">labels</span>:
+      - <span style="color:#e6db74">&#34;traefik.enable=true&#34;</span>
+      - <span style="color:#e6db74">&#34;traefik.http.routers.homeassistant.entrypoints=websecure&#34;</span>
+      - <span style="color:#e6db74">&#34;traefik.http.routers.homeassistant.rule=Host(`homeassistant.${DOMAIN_NAME}`)&#34;</span>
+      - <span style="color:#e6db74">&#34;traefik.http.routers.homeassistant.tls=true&#34;</span>
+      - <span style="color:#e6db74">&#34;traefik.http.routers.homeassistant.tls.certresolver=cloudflare&#34;</span>
+      - <span style="color:#e6db74">&#34;traefik.http.services.homeassistant.loadbalancer.server.port=8123&#34;</span>
+      - <span style="color:#e6db74">&#34;traefik.http.services.homeassistant.loadbalancer.sticky=true&#34;</span>
+      - <span style="color:#e6db74">&#34;traefik.http.services.homeassistant.loadbalancer.sticky.cookie.name=homeassistant&#34;</span>
+</code></pre></div><p>You&rsquo;ll need to set up your Home Assistant definition in Docker Compose to your particular circumstances, which is outside the scope of this article. But to enable Traefik we need to provide at least the following rules.</p>
+<ul>
+<li>The container needs to use the backend network</li>
+</ul>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#f92672">networks</span>:
+  - <span style="color:#ae81ff">backend</span>
+</code></pre></div><ul>
+<li>We tell Traefik to use this container</li>
+</ul>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">- <span style="color:#e6db74">&#39;traefik.enable=true&#39;</span>
+</code></pre></div><ul>
+<li>Allow HTTP access to Home Assistant on the websecure endpoint (port 443), and define a rule to match. In this case I&rsquo;m using a subdomain of homeassistant with a domain name I own.</li>
+</ul>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">- <span style="color:#e6db74">&#39;traefik.http.routers.homeassistant.entrypoints=websecure&#39;</span>
+- <span style="color:#e6db74">&#39;traefik.http.routers.homeassistant.rule=Host(`homeassistant.${DOMAIN_NAME}`)&#39;</span>
+</code></pre></div><ul>
+<li>Request a certificate for HTTPS from Let&rsquo;s Encrypt, using the certsresolver <code>cloudflare</code> we defined earlier.</li>
+</ul>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">- <span style="color:#e6db74">&#39;traefik.http.routers.homeassistant.tls=true&#39;</span>
+- <span style="color:#e6db74">&#39;traefik.http.routers.homeassistant.tls.certresolver=cloudflare&#39;</span>
+</code></pre></div><ul>
+<li>If a container is authored properly, Traefik will be able to get this information from the docker container itself without you having to define it manually. But unfortunately that&rsquo;s not the case here, so we have to define the port inside the container for Traefik to forward to.</li>
+</ul>
+<p><em>Every service in Traefik has a load balancer, even if there is only one upstream service</em></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">- <span style="color:#e6db74">&#39;traefik.http.services.homeassistant.loadbalancer.server.port=8123&#39;</span>
+</code></pre></div><p>Finally we just need to define the networks used by Traefik. As noted earlier, when defining the network name in traefik labels or configuration, you must use the absolute network name, which by default is <code>&lt;docker_compose_project_name&gt;_&lt;network_name&gt;</code>.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#f92672">networks</span>:
+  <span style="color:#f92672">default</span>:
+  <span style="color:#f92672">backend</span>:
+</code></pre></div>]]></content></item></channel></rss>
