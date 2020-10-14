@@ -2,6 +2,13 @@
 title: 'How to Use Traefik v2 With Home Assistant'
 date: 2020-10-13T13:10:41+08:00
 draft: false
+tags:
+  - Home Assistant
+  - Traefik
+  - Traefik v2
+  - Docker
+  - Docker Compose
+  - Home Automation
 ---
 
 When I started using Traefik v2, I struggled to find a useful guide to use it with Home Assistant. Here's my attempt to fill that gap.
