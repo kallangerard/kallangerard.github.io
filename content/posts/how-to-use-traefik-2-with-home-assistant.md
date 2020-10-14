@@ -1,7 +1,7 @@
 ---
 title: 'How to Use Traefik 2 With Home Assistant'
 date: 2020-10-13T13:10:41+08:00
-draft: true
+draft: false
 ---
 
 # How to use Traefik v2 with Home Assistant and Docker
@@ -17,6 +17,8 @@ The main benefits of Traefik for me have been:
 - **Service Discovery:** Traefik can use metadata from your Docker services to discover those services and dynamically configure itself.
 - **SSL Termination and Automatic certificate generation:** Using Let's Encrypt you can get self-renewing certificates out of the box, including for use inside your own network.
 - **Middleware:** Hand off authentication to another service, set headers, redirect HTTP to HTTPS etc.
+
+_Here's a complete working example for those of you who are almost there but just want a quick reference guide. Please note I'm using Home Assistant inside a docker network and not on host_mode. For device discovery in this mode I recommend using a second remote home assistant instance which I'll cover in another article._
 
 ```yaml
 # docker-compose.yaml
@@ -97,9 +99,7 @@ volumes:
   homeassistant:
 ```
 
-_Here's a complete working example for those of you who are almost there but just want a quick reference guide. Please note I'm using Home Assistant inside a docker network and not on host_mode. For device discovery in this mode I recommend using a second remote home assistant instance which I'll cover in another article._
-
-Let's start from the top. I'm using Docker Compose version 2. If you're not using Docker Compose I highly recommend it over `docker run` commands.
+Let's start from the top. Here we mount the docker socket to Traefik with read only access. This allows Traefik to read the metadata of your containers for service discovery. We also use a volume for traefik to store certificates.
 
 ```yaml
 traefik:
@@ -120,7 +120,7 @@ volumes:
   - traefik:/letsencrypt
 ```
 
-Here we mount the docker socket to Traefik with read only access. This allows Traefik to read the metadata of your containers for service discovery. We also use a volume for traefik to store certificates.
+Here we're using a custom command to configure traefik. I prefer this over using configuration files as it keeps it all within one place. Docker Compose will combine this entire list into a single line, but it's a lot more readable this way.
 
 ```yaml
 command:
@@ -136,11 +136,9 @@ command:
   - --certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53
 ```
 
-Here we're using a custom command to configure traefik. I prefer this over using configuration files as it keeps it all within one place. Docker Compose will combine this entire list into a single line, but it's a lot more readable this way.
+There's a few ways to configure traefik, whichever method you prefer. These are all equivalent.
 
-There's a few ways to configure traefik, whichever method you prefer.
-
-**Pluralisation and capitalisation are different for each configuration mode.**
+_Pluralisation and capitalisation are different for each configuration mode._
 
 ```yaml
 # docker-compose.yaml
@@ -162,8 +160,6 @@ address = ":80"
 address = ":443"
 ```
 
-These are all equivalent.
-
 **Entrypoints** define the outside edge of your traefik service. For standard HTTP you'll need port 80 and for HTTPS you'll need 443.
 
 ```yaml
@@ -173,16 +169,16 @@ These are all equivalent.
 
 **Providers** define where traefik will look for services.
 
+We need one flag to declare docker being used as a provider, another to define the endpoint, as well as `exposedbydefault=false` so that we have to explicitly tell traefik to enable services on each container. We also set the network to match what is used by your service containers, to avoid having to set it for every individual container.
+
+The name of the network is the **absolute** network name, which by default is the name of the folder your docker-compose.yaml file lives and the name of the network. To see your network names run `docker network ls`. In my case it's `docker_backend`.
+
 ```yaml
 - --providers.docker
 - --providers.docker.exposedbydefault=false
 - --providers.docker.endpoint=unix://var/run/docker.sock
 - --providers.docker.network=docker_backend
 ```
-
-We need one flag to declare docker being used as a provider, another to define the endpoint, as well as `exposedbydefault=false` so that we have to explicitly tell traefik to enable services on each container. We also set the network to match what is used by your service containers, to avoid having to set it for every individual container.
-
-The name of the network is the **absolute** network name, which by default is the name of the folder your docker-compose.yaml file lives and the name of the network. To see your network names run `docker network ls`. In my case it's `docker_backend`.
 
 **Certificate Resolvers** are used for the automatic generation of your certificates for HTTPS. Check traefik's documentation for your exact configuration requirements. [https://doc.traefik.io/traefik/https/acme/](https://doc.traefik.io/traefik/https/acme/)
 
@@ -204,15 +200,18 @@ When a service is defined with a host name, Traefik will kick off the certificat
 
 Traefik will call Let’s Encrypt and receive a token, and then create a TXT record derived from that token and your account key with your dns provider at \_acme-challenge.<YOUR_DOMAIN>. Traefik will then check the DNS record for your domain until the token resolves. Afterwards Let’s Encrypt will validate the DNS on it's end and hand over a certificate to Traefik.
 
-I'm manually specifying the DNS servers to check the TXT record with `certificatesresolvers.cloudflare.acme.dnschallenge.resolvers` because my internal DNS would interfer with the check.
+I'm manually specifying the DNS servers to check the TXT record with `certificatesresolvers.cloudflare.acme.dnschallenge.resolvers` because my internal DNS would interfer with this check.
 
 Traefik will then take that certificate and store it permanently in the location defined in `certificatesresolvers.cloudflare.acme.storage`.
 
 The main advantage here is, unlike a HTTP challenge, your Traefik instance does not need to be reachable from the internet at all. As long as it can make an outgoing connection to your DNS provider and Let's Encrypt you're good to keep your services behind a VPN and firewall at all times.
 
-Finally we're defining the resolvers TODO: Describe resolvers
-
 ## Redirecting HTTP to HTTPS (optional)
+
+Traefik is comprised of entrypoints, routers, middleware and services.
+We create a http router rule, arbitrarily named `redirs`, to listen on the web entrypoint (port 80), with a regex expression that applies to _all_ host names. So effectively every HTTP client request that hits Traefik on port 80 will be handled by this router.
+
+_Backticks ` are required to define a host rule, not single quotes '_
 
 ```yaml
 labels:
@@ -220,20 +219,15 @@ labels:
   # global redirect to https
   - 'traefik.http.routers.redirs.entrypoints=web'
   - 'traefik.http.routers.redirs.rule=hostregexp(`{host:.+}`)'
-  # HTTP>HTTPS REDIRECT
-  - 'traefik.http.routers.redirs.middlewares=redirect-to-https'
-  - 'traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https'
 ```
 
-Here's a label definition under Traefik to create some rules. Note this doesn't actually enable communication to the Traefik container itself, we're just using it to define some global rules as oppose to using an external file.
+Then we define a piece of middleware, arbitrarily named `redirect-to-https`, to redirect incoming request to https.
 
-Traefik is comprised of entrypoints, routers, middleware and services. We create a http router rule that listens on the web entrypoint (port 80), with a regex express that applies to _all_ host names.
-
-Backticks ``` are required to define a host rule, not single quotes
-
-The router is called 'redirs'.
-
-Then we create a redirection to forward to a middleware called 'redirect-to-https'. Which will redirect the incoming request to https.
+```yaml
+# HTTP>HTTPS REDIRECT
+- 'traefik.http.routers.redirs.middlewares=redirect-to-https'
+- 'traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https'
+```
 
 ## Defining Home Assistant Rules
 
@@ -275,25 +269,25 @@ networks:
 - 'traefik.http.routers.homeassistant.rule=Host(`homeassistant.${DOMAIN_NAME}`)'
 ```
 
-- Request a certificate for HTTPS from Let's Encrypt
+- Request a certificate for HTTPS from Let's Encrypt, using the certsresolver `cloudflare` we defined earlier.
 
 ```yaml
 - 'traefik.http.routers.homeassistant.tls=true'
 - 'traefik.http.routers.homeassistant.tls.certresolver=cloudflare'
 ```
 
-- If they're authored properly, Traefik will be able to get this information from the docker container itself without you having to define it manually. But unfortunately that's not the case here, so we have to define the port inside the container for Traefik to forward to.
+- If a container is authored properly, Traefik will be able to get this information from the docker container itself without you having to define it manually. But unfortunately that's not the case here, so we have to define the port inside the container for Traefik to forward to.
+
+_Every service in Traefik has a load balancer, even if there is only one upstream service_
 
 ```yaml
 - 'traefik.http.services.homeassistant.loadbalancer.server.port=8123'
 ```
 
-Note that every service in Traefik has a load balancer, even if there is only one server.
+Finally we just need to define the networks used by Traefik. As noted earlier, when defining the network name in traefik labels or configuration, you must use the absolute network name, which by default is `<docker_compose_project_name>_<network_name>`.
 
 ```yaml
 networks:
   default:
   backend:
 ```
-
-Finally we just need to define the networks used by Traefik. As noted earlier, when defining the network name in traefik configuration you must use the absolute network name, which by default is `<docker-compose-project-name>_<network_name>`.
