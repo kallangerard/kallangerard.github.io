@@ -141,8 +141,8 @@
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">- --<span style="color:#ae81ff">providers.docker.network=docker_backend</span>
 </code></pre></div><h2 id="certificate-resolvers">Certificate Resolvers</h2>
 <p>Certificate Resolvers are used for the automatic generation of your certificates for HTTPS. Check traefik&rsquo;s documentation for your exact configuration requirements. <a href="https://doc.traefik.io/traefik/https/acme/">https://doc.traefik.io/traefik/https/acme/</a></p>
-<p><em>Since there is no inline assignment, Docker Compose will pull this variable
-from the environment when you run <code>docker-compose up</code></em></p>
+<p><em>Since there is no inline assignment, Docker Compose will pull the environment variables
+from the environment where you run <code>docker-compose up</code></em></p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">
 <span style="color:#f92672">environment</span>:
   - <span style="color:#ae81ff">CLOUDFLARE_DNS_API_TOKEN</span>
