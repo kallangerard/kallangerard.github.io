@@ -210,8 +210,8 @@ The name of the network is the **absolute** network name, which by default is th
 
 Certificate Resolvers are used for the automatic generation of your certificates for HTTPS. Check traefik's documentation for your exact configuration requirements. [https://doc.traefik.io/traefik/https/acme/](https://doc.traefik.io/traefik/https/acme/)
 
-_Since there is no inline assignment, Docker Compose will pull this variable
-from the environment when you run `docker-compose up`_
+_Since there is no inline assignment, Docker Compose will pull the environment variables
+from the environment where you run `docker-compose up`_
 
 ```yaml
 
