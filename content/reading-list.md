@@ -33,7 +33,7 @@ draft: false
 
 - ### The Unicorn Project
 
-  Gene Kim
+  _Gene Kim_
 
   The events of _The Phoenix Project_ told from a different perspective. This time the story follows Maxine, a senior developer who's moved onto the Phoenix Project after a very public outage, and told to stay out of trouble and not make waves. This one is more written for Developers and Engineers and maybe not as accessible as _The Phoenix Project_ to the wider community.
 
