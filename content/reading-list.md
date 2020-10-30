@@ -5,7 +5,7 @@ date: 2020-10-25T19:40:58+08:00
 draft: false
 ---
 
-## Books, podcasts, videos, and articles I recommend, in no particular order.
+## Books, podcasts, videos, and articles I recommend. In no particular order.
 
 ### Books
 
