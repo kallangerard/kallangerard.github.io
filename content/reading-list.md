@@ -7,6 +7,8 @@ draft: false
 
 ## Books, podcasts, videos, and articles I recommend. In no particular order.
 
+<!--more-->
+
 ### Books
 
 - ### The Lean Startup
