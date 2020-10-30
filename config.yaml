@@ -46,8 +46,9 @@ params:
   dateformNum: "2006-01-02"
   dateformNumTime: "2006-01-02 15:04"
 
+
   homeSubtitle: A simple blog of my technical adventures
-  enableSharingButtons: true
+  enableSharingButtons: false
 
   description: "A blog of my lean devops learnings"
   keywords: "homepage, blog"
@@ -82,3 +83,6 @@ menu:
     - identifier: posts
       name: Posts
       url: posts/
+    - identifier: reading-list
+      name: Reading List
+      url: reading-list/
