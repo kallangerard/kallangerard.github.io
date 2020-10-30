@@ -35,13 +35,13 @@ draft: false
 
   _Gene Kim_
 
-  The events of _The Phoenix Project_ told from a different perspective. This time the story follows Maxine, a senior developer who's moved onto the Phoenix Project after a very public outage, and told to stay out of trouble and not make waves. This one is more written for Developers and Engineers and maybe not as accessible as _The Phoenix Project_ to the wider community.
+  The events of _The Phoenix Project_ told from a different perspective. This time the story follows Maxine, a senior developer who's moved onto the Phoenix Project after a very public outage, and told to stay out of trouble and not make waves. This one is written more for Developers and Engineers, and not as accessible as _The Phoenix Project_ was to the wider community.
 
 - ### The Goal
 
   _Eliyahu M. Goldratt_
 
-  When you read this one you'll quickly learn where _The Phoenix Project_ took it's inspiration from. Originally published in 1984 some of the applications are a little dated are a little dated, but you can still take a lot from this book.
+  When you read this one you'll quickly learn where _The Phoenix Project_ took it's inspiration from. Originally published in 1984 some of the applications are a little dated, but you can still take a lot from this book.
 
   Told in a business novel format like _The Phoenix Project_, and a great introduction to The Theory of Constraints, in which the throughput of any complex system is soley constrained by the throughput of a single activity.
 
