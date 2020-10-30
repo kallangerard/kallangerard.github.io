@@ -54,7 +54,7 @@ params:
   keywords: "homepage, blog"
   images: [""]
 
-  defaultTheme: dark
+  defaultTheme: light
 
   Logo:
     logoText: "Kallan Gerard"
