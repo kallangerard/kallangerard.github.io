@@ -50,9 +50,9 @@ params:
   homeSubtitle: A simple blog of my technical adventures
   enableSharingButtons: false
 
-  description: "A blog of my lean devops learnings"
-  keywords: "homepage, blog"
-  images: [""]
+  description: "Personal blog by Kallan Gerard covering DevOps, home automation, and technical learnings."
+  keywords: "devops, home automation, home assistant, traefik, docker, lean, blog"
+  images: []
 
   defaultTheme: light
 
